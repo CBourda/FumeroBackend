@@ -1,6 +1,8 @@
 package com.fumero.controller;
 
+import com.fumero.model.AppointmentRequest;
 import com.fumero.model.ContactRequest;
+import com.fumero.service.AppointmentService;
 import com.fumero.service.MailService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
@@ -17,59 +20,71 @@ import java.util.Map;
 public class ContactController {
 
     private final MailService mailService;
+    private final AppointmentService appointmentService;
 
-    /**
-     * Riceve il form di contatto dal frontend React.
-     * Valida i dati con @Valid, poi delega l'invio email al MailService.
-     */
+    // ─── CONTATTO GENERALE ───
     @PostMapping("/contact")
     public ResponseEntity<Map<String, String>> contact(
             @Valid @RequestBody ContactRequest request) {
 
-        log.info("Nuova richiesta di contatto da: {} — clinica: {}",
-                request.getEmail(), request.getClinica());
-
+        log.info("Nuovo contatto da: {}", request.getEmail());
         mailService.sendContactEmail(request);
 
         return ResponseEntity.ok(Map.of(
                 "status", "ok",
-                "message", "Richiesta inviata correttamente"
+                "message", "Messaggio inviato correttamente"
         ));
     }
 
-    /**
-     * Riceve la richiesta di appuntamento.
-     * Per ora usa lo stesso DTO e lo stesso flusso email.
-     * In futuro qui si aggancerà Google Calendar.
-     */
+    // ─── PRENOTAZIONE TELEVISITA ───
     @PostMapping("/appointment")
     public ResponseEntity<Map<String, String>> appointment(
-            @Valid @RequestBody ContactRequest request) {
+            @Valid @RequestBody AppointmentRequest request) {
 
-        log.info("Nuova richiesta di appuntamento da: {} — clinica: {}",
-                request.getEmail(), request.getClinica());
+        // Verifica se le prenotazioni sono aperte
+        if (!appointmentService.isPrenotazioneAperta()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "status", "closed",
+                    "message", "Le prenotazioni per questa settimana sono chiuse. Riprova martedì sera."
+            ));
+        }
 
-        mailService.sendContactEmail(request);
+        // Calcola e imposta la data televisita
+        appointmentService.impostaDataTelevista(request);
+        log.info("Nuova prenotazione televisita da: {} per: {}",
+                request.getEmail(), request.getDataTelevista());
+
+        // Invia email IBAN al paziente + notifica al dottore
+        mailService.sendAppointmentEmails(request);
 
         return ResponseEntity.ok(Map.of(
                 "status", "ok",
-                "message", "Richiesta di appuntamento inviata correttamente"
+                "message", "Richiesta ricevuta. Riceverà a breve una email con gli estremi per il pagamento."
         ));
     }
 
-    /**
-     * Gestisce gli errori di validazione (@Valid).
-     * Restituisce un 400 con i campi che non passano la validazione.
-     */
+    // ─── SLOT DISPONIBILE (usato dal frontend per mostrare la data) ───
+    @GetMapping("/appointment/slot")
+    public ResponseEntity<Map<String, Object>> getSlot() {
+        boolean aperta = appointmentService.isPrenotazioneAperta();
+        String data = appointmentService.formattaData(
+                appointmentService.calcolaProssimoMartedi());
+
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("aperta", aperta);
+        resp.put("data", data);
+        return ResponseEntity.ok(resp);
+    }
+
+    // ─── VALIDAZIONE ERRORI ───
     @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationErrors(
             org.springframework.web.bind.MethodArgumentNotValidException ex) {
 
-        Map<String, String> errors = new java.util.HashMap<>();
+        Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getFieldErrors()
                 .forEach(err -> errors.put(err.getField(), err.getDefaultMessage()));
-
-        log.warn("Errore validazione form: {}", errors);
+        log.warn("Errore validazione: {}", errors);
         return ResponseEntity.badRequest().body(errors);
     }
 }

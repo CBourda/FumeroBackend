@@ -1,0 +1,117 @@
+  <!doctype html>
+    <html lang="it">
+    <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- SEO Meta Tags -->
+    <title>Dott. Andrea Fumero — Cardiochirurgo Milano | Televisita</title>
+    <meta name="description" content="Dott. Andrea Fumero, cardiochirurgo specialista in chirurgia mininvasiva, valvola mitrale, valvola aortica, TAVI e Mitraclip. Humanitas Rozzano, Milano, Vigevano, Cagliari. Prenota una televisita online." />
+    <meta name="keywords" content="cardiochirurgo, cardiochirurgia mininvasiva, valvola mitrale, valvola aortica, TAVI, Mitraclip, minitoracotomia, ministernotomia, aneurisma aortico, fibrillazione atriale, Humanitas, Milano, Cagliari, televisita cardiochirurgo" />
+    <meta name="author" content="Dott. Andrea Davide Fumero" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph (per condivisione social) -->
+    <meta property="og:title" content="Dott. Andrea Fumero — Cardiochirurgo" />
+    <meta property="og:description" content="Specialista in chirurgia cardiaca mininvasiva, valvola mitrale, TAVI e Mitraclip. Prenota una televisita." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.andreafumero.it" />
+    <meta property="og:locale" content="it_IT" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Schema.org — Physician -->
+    <script type="application/ld+json">
+    {
+  "@context": "https://schema.org",
+  "@type": "Physician",
+  "name": "Dott. Andrea Davide Fumero",
+  "url": "https://www.andreafumero.it",
+  "description": "Cardiochirurgo specialista in chirurgia mininvasiva, valvola mitrale, valvola aortica, TAVI e Mitraclip.",
+  "medicalSpecialty": "Cardiovascular",
+  "hasCredential": [
+    {
+      "@type": "EducationalOccupationalCredential",
+      "credentialCategory": "Specializzazione in Cardiochirurgia",
+      "recognizedBy": {
+        "@type": "Organization",
+        "name": "Università degli Studi di Milano"
+      }
+    }
+  ],
+  "affiliation": {
+    "@type": "Hospital",
+    "name": "Humanitas Research Hospital",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Via A. Manzoni 56",
+      "addressLocality": "Rozzano",
+      "addressRegion": "MI",
+      "postalCode": "20089",
+      "addressCountry": "IT"
+    }
+  },
+  "availableService": [
+    { "@type": "MedicalProcedure", "name": "Chirurgia valvolare mininvasiva" },
+    { "@type": "MedicalProcedure", "name": "Chirurgia valvola mitrale" },
+    { "@type": "MedicalProcedure", "name": "Chirurgia valvola aortica" },
+    { "@type": "MedicalProcedure", "name": "TAVI — sostituzione valvola aortica transcatetere" },
+    { "@type": "MedicalProcedure", "name": "Mitraclip — riparazione valvola mitrale transcatetere" },
+    { "@type": "MedicalProcedure", "name": "Chirurgia aneurisma aorta toracica" },
+    { "@type": "MedicalProcedure", "name": "Trattamento fibrillazione atriale" }
+  ],
+  "workLocation": [
+    {
+      "@type": "MedicalClinic",
+      "name": "Humanitas Research Hospital",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Via A. Manzoni 56",
+        "addressLocality": "Rozzano",
+        "postalCode": "20089",
+        "addressCountry": "IT"
+      }
+    },
+    {
+      "@type": "MedicalClinic",
+      "name": "Centro Medico Visconti di Modrone",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Via Visconti di Modrone 7",
+        "addressLocality": "Milano",
+        "postalCode": "20122",
+        "addressCountry": "IT"
+      }
+    },
+    {
+      "@type": "MedicalClinic",
+      "name": "Emmebi Servizi Medici",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Via Mascagni 41",
+        "addressLocality": "Vigevano",
+        "postalCode": "27029",
+        "addressCountry": "IT"
+      }
+    },
+    {
+      "@type": "MedicalClinic",
+      "name": "Centro Medico Genneruxi",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Via Costantinopoli 42",
+        "addressLocality": "Cagliari",
+        "postalCode": "09129",
+        "addressCountry": "IT"
+      }
+    }
+  ]
+  }
+    </script>
+    </head>
+    <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    </body>
+    </html>

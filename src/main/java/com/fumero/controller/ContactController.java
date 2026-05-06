@@ -10,7 +10,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -41,7 +45,6 @@ public class ContactController {
     public ResponseEntity<Map<String, String>> appointment(
             @Valid @RequestBody AppointmentRequest request) {
 
-        // Verifica se le prenotazioni sono aperte
         if (!appointmentService.isPrenotazioneAperta()) {
             return ResponseEntity.badRequest().body(Map.of(
                     "status", "closed",
@@ -49,12 +52,37 @@ public class ContactController {
             ));
         }
 
-        // Calcola e imposta la data televisita
-        appointmentService.impostaDataTelevista(request);
-        log.info("Nuova prenotazione televisita da: {} per: {}",
-                request.getEmail(), request.getDataTelevista());
+        int slot = request.getSlot();
+        if (slot != 1 && slot != 2) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "status", "error",
+                    "message", "Slot non valido."
+            ));
+        }
 
-        // Invia email IBAN al paziente + notifica al dottore
+        boolean slotDisponibile = slot == 1
+                ? appointmentService.isSlot1Disponibile()
+                : appointmentService.isSlot2Disponibile();
+
+        if (!slotDisponibile) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "status", "slot_taken",
+                    "message", "Lo slot selezionato è già occupato. Seleziona l'altro orario."
+            ));
+        }
+
+        boolean prenotato = appointmentService.prenotaSlot(slot);
+        if (!prenotato) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "status", "slot_taken",
+                    "message", "Lo slot selezionato è appena stato prenotato. Seleziona l'altro orario."
+            ));
+        }
+
+        appointmentService.impostaDataTelevista(request);
+        log.info("Nuova prenotazione televisita da: {} per: {} (slot {})",
+                request.getEmail(), request.getDataTelevista(), slot);
+
         mailService.sendAppointmentEmails(request);
 
         return ResponseEntity.ok(Map.of(
@@ -63,16 +91,33 @@ public class ContactController {
         ));
     }
 
-    // ─── SLOT DISPONIBILE (usato dal frontend per mostrare la data) ───
+    // ─── SLOT DISPONIBILI ───
     @GetMapping("/appointment/slot")
     public ResponseEntity<Map<String, Object>> getSlot() {
         boolean aperta = appointmentService.isPrenotazioneAperta();
-        String data = appointmentService.formattaData(
-                appointmentService.calcolaProssimoMartedi());
+        LocalDate martedi = appointmentService.calcolaProssimoMartedi();
+
+        List<Map<String, Object>> slots = new ArrayList<>();
+
+        if (appointmentService.isSlot1Disponibile()) {
+            slots.add(Map.of(
+                    "slot", 1,
+                    "ora", "18:00",
+                    "label", appointmentService.formattaData(martedi, LocalTime.of(18, 0))
+            ));
+        }
+        if (appointmentService.isSlot2Disponibile()) {
+            slots.add(Map.of(
+                    "slot", 2,
+                    "ora", "18:30",
+                    "label", appointmentService.formattaData(martedi, LocalTime.of(18, 30))
+            ));
+        }
 
         Map<String, Object> resp = new HashMap<>();
         resp.put("aperta", aperta);
-        resp.put("data", data);
+        resp.put("slots", slots);
+        resp.put("data", appointmentService.formattaData(appointmentService.calcolaProssimoMartediDateTime()));
         return ResponseEntity.ok(resp);
     }
 

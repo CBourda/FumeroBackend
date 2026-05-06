@@ -1,7 +1,10 @@
 package com.fumero.model;
 
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -31,6 +34,11 @@ public class AppointmentRequest {
     @NotBlank(message = "Il motivo è obbligatorio")
     @Size(max = 2000, message = "Testo troppo lungo")
     private String motivo;
+
+    @NotNull(message = "Lo slot è obbligatorio")
+    @Min(value = 1, message = "Slot non valido")
+    @Max(value = 2, message = "Slot non valido")
+    private Integer slot;
 
     private String dataTelevista;
 }

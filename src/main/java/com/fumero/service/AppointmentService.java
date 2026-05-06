@@ -8,72 +8,87 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class AppointmentService {
 
-    // Televisita sempre il martedì alle 18:00
     private static final DayOfWeek GIORNO_TELEVISITA = DayOfWeek.TUESDAY;
-    private static final LocalTime ORA_TELEVISITA = LocalTime.of(18, 0);
-
-    // Prenotazioni chiuse dalla domenica a mezzanotte (2 giorni prima del martedì)
-    private static final DayOfWeek GIORNO_CHIUSURA = DayOfWeek.SUNDAY;
+    private static final LocalTime SLOT1 = LocalTime.of(18, 0);
+    private static final LocalTime SLOT2 = LocalTime.of(18, 30);
     private static final LocalTime ORA_CHIUSURA = LocalTime.of(23, 59);
+    private static final DayOfWeek GIORNO_CHIUSURA = DayOfWeek.SUNDAY;
 
-    /**
-     * Calcola il prossimo martedì disponibile alle 18:00.
-     * Se oggi è dopo domenica mezzanotte, salta al martedì della settimana successiva.
-     */
-    public LocalDateTime calcolaProssimoMartedi() {
+    // Key: "yyyy-MM-dd_18:00" o "yyyy-MM-dd_18:30" — true = occupato
+    private final ConcurrentHashMap<String, Boolean> slotOccupati = new ConcurrentHashMap<>();
+
+    private String slotKey(LocalDate martedi, LocalTime ora) {
+        return martedi + "_" + ora;
+    }
+
+    public LocalDate calcolaProssimoMartedi() {
         LocalDateTime ora = LocalDateTime.now();
         LocalDate oggi = ora.toLocalDate();
 
-        // Trova il prossimo martedì
         LocalDate martedi = oggi;
         while (martedi.getDayOfWeek() != GIORNO_TELEVISITA) {
             martedi = martedi.plusDays(1);
         }
 
-        // Controlla se le prenotazioni sono chiuse (dopo domenica mezzanotte)
-        LocalDate domenicaPrecedente = martedi.minusDays(2);
-        LocalDateTime chiusura = LocalDateTime.of(domenicaPrecedente, ORA_CHIUSURA);
+        LocalDate domenica = martedi.minusDays(2);
+        LocalDateTime chiusura = LocalDateTime.of(domenica, ORA_CHIUSURA);
 
         if (ora.isAfter(chiusura)) {
-            // Passa al martedì successivo
             martedi = martedi.plusWeeks(1);
         }
 
-        return LocalDateTime.of(martedi, ORA_TELEVISITA);
+        return martedi;
     }
 
-    /**
-     * Verifica se le prenotazioni sono aperte in questo momento.
-     */
     public boolean isPrenotazioneAperta() {
         LocalDateTime ora = LocalDateTime.now();
-        LocalDateTime prossimoMartedi = calcolaProssimoMartedi();
-
-        // Domenica a mezzanotte prima del martedì
-        LocalDate domenicaChiusura = prossimoMartedi.toLocalDate().minusDays(2);
-        LocalDateTime chiusura = LocalDateTime.of(domenicaChiusura, ORA_CHIUSURA);
-
+        LocalDate martedi = calcolaProssimoMartedi();
+        LocalDate domenica = martedi.minusDays(2);
+        LocalDateTime chiusura = LocalDateTime.of(domenica, ORA_CHIUSURA);
         return ora.isBefore(chiusura);
     }
 
-    /**
-     * Formatta la data per le email — es: "martedì 15 aprile 2025 alle 18:00"
-     */
-    public String formattaData(LocalDateTime data) {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy 'alle' HH:mm",
-                java.util.Locale.ITALIAN);
-        return data.format(formatter);
+    public boolean isSlot1Disponibile() {
+        return !slotOccupati.getOrDefault(slotKey(calcolaProssimoMartedi(), SLOT1), false);
     }
 
-    /**
-     * Imposta la data televisita nella request.
-     */
+    public boolean isSlot2Disponibile() {
+        return !slotOccupati.getOrDefault(slotKey(calcolaProssimoMartedi(), SLOT2), false);
+    }
+
+    public boolean prenotaSlot(int slot) {
+        LocalDate martedi = calcolaProssimoMartedi();
+        LocalTime ora = slot == 1 ? SLOT1 : SLOT2;
+        String key = slotKey(martedi, ora);
+        // putIfAbsent restituisce null se il key non esisteva → prenotazione riuscita
+        return slotOccupati.putIfAbsent(key, true) == null;
+    }
+
+    public String formattaData(LocalDate martedi, LocalTime ora) {
+        LocalDateTime dt = LocalDateTime.of(martedi, ora);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy 'alle' HH:mm", Locale.ITALIAN);
+        return dt.format(formatter);
+    }
+
     public void impostaDataTelevista(AppointmentRequest request) {
-        LocalDateTime martedi = calcolaProssimoMartedi();
-        request.setDataTelevista(formattaData(martedi));
+        LocalDate martedi = calcolaProssimoMartedi();
+        LocalTime ora = request.getSlot() == 2 ? SLOT2 : SLOT1;
+        request.setDataTelevista(formattaData(martedi, ora));
+    }
+
+    // Mantenuto per compatibilità con getSlot() senza slot specifico
+    public LocalDateTime calcolaProssimoMartediDateTime() {
+        return LocalDateTime.of(calcolaProssimoMartedi(), SLOT1);
+    }
+
+    public String formattaData(LocalDateTime data) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy 'alle' HH:mm", Locale.ITALIAN);
+        return data.format(formatter);
     }
 }

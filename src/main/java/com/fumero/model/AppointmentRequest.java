@@ -20,11 +20,17 @@ public class AppointmentRequest {
     @Size(max = 20)
     private String telefono;
 
+    @NotBlank(message = "Il codice fiscale è obbligatorio")
+    @Size(min = 16, max = 16, message = "Il codice fiscale deve essere di 16 caratteri")
+    private String codiceFiscale;
+
+    @NotBlank(message = "L'indirizzo è obbligatorio")
+    @Size(max = 200)
+    private String indirizzo;
+
     @NotBlank(message = "Il motivo è obbligatorio")
     @Size(max = 2000, message = "Testo troppo lungo")
     private String motivo;
 
-    // Data televisita calcolata lato backend — non serve dal frontend
-    // Viene impostata automaticamente dal controller
     private String dataTelevista;
 }

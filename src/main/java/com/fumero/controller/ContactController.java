@@ -121,6 +121,27 @@ public class ContactController {
         return ResponseEntity.ok(resp);
     }
 
+    // ─── RESET SLOT (admin) ───
+    @PostMapping("/admin/reset-slots")
+    public ResponseEntity<Map<String, String>> resetSlots(
+            @RequestHeader("X-Admin-Password") String password) {
+
+        String adminPassword = System.getenv("ADMIN_PASSWORD");
+        if (adminPassword == null || !adminPassword.equals(password)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "status", "error",
+                    "message", "Non autorizzato."
+            ));
+        }
+
+        appointmentService.resetSlots();
+        log.info("Slot resettati via endpoint admin");
+        return ResponseEntity.ok(Map.of(
+                "status", "ok",
+                "message", "Slot resettati correttamente."
+        ));
+    }
+
     // ─── VALIDAZIONE ERRORI ───
     @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationErrors(

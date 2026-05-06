@@ -31,7 +31,14 @@ public class MailService {
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
     private void sendEmail(String to, String subject, String html) {
-        String jsonBody = "{\"from\":\"" + mailFrom + "\",\"to\":[\"" + to + "\"],\"subject\":\"" + subject.replace("\"", "\\\"") + "\",\"html\":\"" + html.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "") + "\"}";
+        sendEmailWithReplyTo(to, subject, html, null);
+    }
+
+    private void sendEmailWithReplyTo(String to, String subject, String html, String replyTo) {
+        String escapedHtml = html.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "");
+        String escapedSubject = subject.replace("\"", "\\\"");
+        String replyToPart = replyTo != null ? ",\"reply_to\":\"" + replyTo + "\"" : "";
+        String jsonBody = "{\"from\":\"" + mailFrom + "\",\"to\":[\"" + to + "\"],\"subject\":\"" + escapedSubject + "\",\"html\":\"" + escapedHtml + "\"" + replyToPart + "}";
 
         try {
             HttpRequest request = HttpRequest.newBuilder()
@@ -63,7 +70,7 @@ public class MailService {
 
     private void sendContactToDottore(ContactRequest req) {
         String html = "<h2>Nuovo messaggio dal sito</h2><table style='font-family:Arial,sans-serif;font-size:14px'><tr><td><b>Nome:</b></td><td>" + req.getNome() + "</td></tr><tr><td><b>Email:</b></td><td>" + req.getEmail() + "</td></tr><tr><td><b>Telefono:</b></td><td>" + (req.getTelefono() != null ? req.getTelefono() : "—") + "</td></tr><tr><td><b>Messaggio:</b></td><td>" + req.getMessaggio() + "</td></tr></table>";
-        sendEmail(mailTo, "[Sito Fumero] Nuovo messaggio da " + req.getNome(), html);
+        sendEmailWithReplyTo(mailTo, "[Sito Fumero] Nuovo messaggio da " + req.getNome(), html, req.getEmail());
         log.info("Email contatto inviata al dottore da: {}", req.getEmail());
     }
 
@@ -91,7 +98,7 @@ public class MailService {
     private void sendAppointmentNotifyToDottore(AppointmentRequest req) {
         String html = "<h2>Nuova richiesta di televisita</h2><p style='color:#e67e22'><b>⏳ In attesa di verifica pagamento</b></p><table style='font-family:Arial,sans-serif;font-size:14px;border-collapse:collapse;margin:16px 0'><tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Paziente</td><td style='padding:8px 16px'><b>" + req.getNome() + "</b></td></tr><tr><td style='padding:8px 16px;color:#666'>Email</td><td style='padding:8px 16px'>" + req.getEmail() + "</td></tr><tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Telefono</td><td style='padding:8px 16px'>" + req.getTelefono() + "</td></tr><tr><td style='padding:8px 16px;color:#666'>Data</td><td style='padding:8px 16px'><b>" + req.getDataTelevista() + "</b></td></tr><tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Motivo</td><td style='padding:8px 16px'>" + req.getMotivo() + "</td></tr></table><p>Quando riceve la ricevuta del bonifico, confermi l'appuntamento inviando al paziente il link Google Meet.</p>";
         try {
-            sendEmail(mailTo, "[Televisita] Nuova prenotazione — " + req.getNome() + " — " + req.getDataTelevista(), html);
+            sendEmailWithReplyTo(mailTo, "[Televisita] Nuova prenotazione — " + req.getNome() + " — " + req.getDataTelevista(), html, req.getEmail());
             log.info("Notifica televisita inviata al dottore per: {}", req.getEmail());
         } catch (Exception e) {
             log.warn("Errore notifica televisita al dottore: {}", e.getMessage());

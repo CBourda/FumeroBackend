@@ -91,4 +91,8 @@ public class AppointmentService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy 'alle' HH:mm", Locale.ITALIAN);
         return data.format(formatter);
     }
+
+    public void resetSlots() {
+        slotOccupati.clear();
+    }
 }

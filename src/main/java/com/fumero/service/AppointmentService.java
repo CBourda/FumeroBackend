@@ -95,4 +95,12 @@ public class AppointmentService {
     public void resetSlots() {
         slotOccupati.clear();
     }
+
+    public void resetSlot1() {
+        slotOccupati.remove(slotKey(calcolaProssimoMartedi(), LocalTime.of(18, 0)));
+    }
+
+    public void resetSlot2() {
+        slotOccupati.remove(slotKey(calcolaProssimoMartedi(), LocalTime.of(18, 30)));
+    }
 }

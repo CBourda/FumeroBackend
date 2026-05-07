@@ -142,6 +142,27 @@ public class ContactController {
         ));
     }
 
+    @PostMapping("/admin/reset-slot1")
+    public ResponseEntity<Map<String, String>> resetSlot1(
+            @RequestHeader("X-Admin-Password") String password) {
+        String adminPassword = System.getenv("ADMIN_PASSWORD");
+        if (adminPassword == null || !adminPassword.equals(password)) {
+            return ResponseEntity.status(403).body(Map.of("status", "error", "message", "Non autorizzato."));
+        }
+        appointmentService.resetSlot1();
+        return ResponseEntity.ok(Map.of("status", "ok", "message", "Slot 18:00 resettato."));
+    }
+
+    @PostMapping("/admin/reset-slot2")
+    public ResponseEntity<Map<String, String>> resetSlot2(
+            @RequestHeader("X-Admin-Password") String password) {
+        String adminPassword = System.getenv("ADMIN_PASSWORD");
+        if (adminPassword == null || !adminPassword.equals(password)) {
+            return ResponseEntity.status(403).body(Map.of("status", "error", "message", "Non autorizzato."));
+        }
+        appointmentService.resetSlot2();
+        return ResponseEntity.ok(Map.of("status", "ok", "message", "Slot 18:30 resettato."));
+    }
     // ─── VALIDAZIONE ERRORI ───
     @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationErrors(

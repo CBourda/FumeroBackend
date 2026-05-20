@@ -11,5 +11,5 @@ jobs:
     steps:
       - name: Ping backend
         run: |
-          curl -f https://fumerobackend.onrender.com/api/appointment/slot
-          echo "Backend sveglio ✓"
+          curl -s -o /dev/null https://fumerobackend.onrender.com/api/appointment/slot
+          echo "Ping inviato ✓"

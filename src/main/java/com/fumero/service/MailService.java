@@ -63,19 +63,29 @@ public class MailService {
         }
     }
 
+    // ─── CONTATTO GENERALE ───────────────────────────────────────────────────
+
     public void sendContactEmail(ContactRequest req) {
         sendContactToDottore(req);
         sendContactConfirmToPaziente(req);
     }
 
     private void sendContactToDottore(ContactRequest req) {
-        String html = "<h2>Nuovo messaggio dal sito</h2><table style='font-family:Arial,sans-serif;font-size:14px'><tr><td><b>Nome:</b></td><td>" + req.getNome() + "</td></tr><tr><td><b>Email:</b></td><td>" + req.getEmail() + "</td></tr><tr><td><b>Telefono:</b></td><td>" + (req.getTelefono() != null ? req.getTelefono() : "—") + "</td></tr><tr><td><b>Messaggio:</b></td><td>" + req.getMessaggio() + "</td></tr></table>";
+        String html = "<h2>Nuovo messaggio dal sito</h2>" +
+                "<table style='font-family:Arial,sans-serif;font-size:14px'>" +
+                "<tr><td><b>Nome:</b></td><td>" + req.getNome() + "</td></tr>" +
+                "<tr><td><b>Email:</b></td><td>" + req.getEmail() + "</td></tr>" +
+                "<tr><td><b>Telefono:</b></td><td>" + (req.getTelefono() != null ? req.getTelefono() : "—") + "</td></tr>" +
+                "<tr><td><b>Messaggio:</b></td><td>" + req.getMessaggio() + "</td></tr>" +
+                "</table>";
         sendEmailWithReplyTo(mailTo, "[Sito Fumero] Nuovo messaggio da " + req.getNome(), html, req.getEmail());
         log.info("Email contatto inviata al dottore da: {}", req.getEmail());
     }
 
     private void sendContactConfirmToPaziente(ContactRequest req) {
-        String html = "<p>Gentile " + req.getNome() + ",</p><p>Il suo messaggio è stato ricevuto. Le risponderemo entro 48 ore lavorative.</p><br><p>Cordiali saluti,<br><b>Dott. Andrea Fumero</b><br>Cardiochirurgo</p>";
+        String html = "<p>Gentile " + req.getNome() + ",</p>" +
+                "<p>Il suo messaggio è stato ricevuto. Le risponderemo entro 48 ore lavorative.</p>" +
+                "<br><p>Cordiali saluti,<br><b>Dott. Andrea Fumero</b><br>Cardiochirurgo</p>";
         try {
             sendEmail(req.getEmail(), "Messaggio ricevuto — Dott. Andrea Fumero", html);
         } catch (Exception e) {
@@ -83,22 +93,59 @@ public class MailService {
         }
     }
 
-    public void sendAppointmentEmails(AppointmentRequest req) {
+    // ─── PRENOTAZIONE TELEVISITA ─────────────────────────────────────────────
+
+    public void sendAppointmentEmails(AppointmentRequest req, String meetLink) {
         sendIbanToPaziente(req);
-        sendAppointmentNotifyToDottore(req);
+        sendAppointmentNotifyToDottore(req, meetLink);
     }
 
     private void sendIbanToPaziente(AppointmentRequest req) {
-        String causale = "Televisita — " + req.getNome() + " — CF: " + req.getCodiceFiscale() + " — " + req.getIndirizzo() + " — " + req.getDataTelevista();
-        String html = "<p>Gentile " + req.getNome() + ",</p><p>La sua richiesta di televisita è stata ricevuta.</p><p>Per confermare l'appuntamento, effettui un bonifico con i seguenti estremi:</p><table style='font-family:Arial,sans-serif;font-size:14px;border-collapse:collapse;margin:16px 0'><tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Intestato a</td><td style='padding:8px 16px'><b>Dott. Andrea Davide Fumero</b></td></tr><tr><td style='padding:8px 16px;color:#666'>IBAN</td><td style='padding:8px 16px;font-family:monospace'><b>" + iban + "</b></td></tr><tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Importo</td><td style='padding:8px 16px'><b>€ 200,00</b></td></tr><tr><td style='padding:8px 16px;color:#666'>Causale</td><td style='padding:8px 16px'>" + causale + "</td></tr></table><p>Dopo il pagamento, invii la ricevuta del bonifico ed eventuali referti direttamente a: <b>andrea.fumero@humanitas.it</b></p><p>Il Dott. Fumero confermerà l'appuntamento e le invierà il link Google Meet.</p><p>Data prevista: <b>" + req.getDataTelevista() + "</b></p><br><p>Cordiali saluti,<br><b>Dott. Andrea Fumero</b><br>Cardiochirurgo</p>";
+        String causale = "Televisita — " + req.getNome() +
+                " — CF: " + req.getCodiceFiscale() +
+                " — " + req.getIndirizzo() +
+                " — " + req.getDataTelevista();
+
+        String html = "<p>Gentile " + req.getNome() + ",</p>" +
+                "<p>La sua richiesta di televisita è stata ricevuta.</p>" +
+                "<p>Per confermare l'appuntamento, effettui un bonifico con i seguenti estremi:</p>" +
+                "<table style='font-family:Arial,sans-serif;font-size:14px;border-collapse:collapse;margin:16px 0'>" +
+                "<tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Intestato a</td><td style='padding:8px 16px'><b>Dott. Andrea Davide Fumero</b></td></tr>" +
+                "<tr><td style='padding:8px 16px;color:#666'>IBAN</td><td style='padding:8px 16px;font-family:monospace'><b>" + iban + "</b></td></tr>" +
+                "<tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Importo</td><td style='padding:8px 16px'><b>€ 200,00</b></td></tr>" +
+                "<tr><td style='padding:8px 16px;color:#666'>Causale</td><td style='padding:8px 16px'>" + causale + "</td></tr>" +
+                "</table>" +
+                "<p>Dopo il pagamento, invii la ricevuta del bonifico ed eventuali referti direttamente a: <b>andrea.fumero@humanitas.it</b></p>" +
+                "<p>Il Dott. Fumero confermerà l'appuntamento e le invierà il link Google Meet.</p>" +
+                "<p>Data prevista: <b>" + req.getDataTelevista() + "</b></p>" +
+                "<br><p>Cordiali saluti,<br><b>Dott. Andrea Fumero</b><br>Cardiochirurgo</p>";
+
         sendEmail(req.getEmail(), "Richiesta televisita ricevuta — Dott. Andrea Fumero", html);
         log.info("Email IBAN inviata a: {}", req.getEmail());
     }
 
-    private void sendAppointmentNotifyToDottore(AppointmentRequest req) {
-        String html = "<h2>Nuova richiesta di televisita</h2><p style='color:#e67e22'><b>⏳ In attesa di verifica pagamento</b></p><table style='font-family:Arial,sans-serif;font-size:14px;border-collapse:collapse;margin:16px 0'><tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Paziente</td><td style='padding:8px 16px'><b>" + req.getNome() + "</b></td></tr><tr><td style='padding:8px 16px;color:#666'>Email</td><td style='padding:8px 16px'>" + req.getEmail() + "</td></tr><tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Telefono</td><td style='padding:8px 16px'>" + req.getTelefono() + "</td></tr><tr><td style='padding:8px 16px;color:#666'>Data</td><td style='padding:8px 16px'><b>" + req.getDataTelevista() + "</b></td></tr><tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Motivo</td><td style='padding:8px 16px'>" + req.getMotivo() + "</td></tr></table><p>Quando riceve la ricevuta del bonifico, confermi l'appuntamento inviando al paziente il link Google Meet.</p>";
+    private void sendAppointmentNotifyToDottore(AppointmentRequest req, String meetLink) {
+        String meetHtml = meetLink != null
+                ? "<p style='margin:16px 0'><a href='" + meetLink + "' style='background:#1a73e8;color:white;padding:10px 20px;text-decoration:none;border-radius:4px'>🎥 Apri Google Meet</a></p>"
+                : "<p style='color:#e74c3c'>⚠ Link Meet non disponibile — crearlo manualmente.</p>";
+
+        String html = "<h2>Nuova richiesta di televisita</h2>" +
+                "<p style='color:#e67e22'><b>⏳ In attesa di verifica pagamento</b></p>" +
+                "<table style='font-family:Arial,sans-serif;font-size:14px;border-collapse:collapse;margin:16px 0'>" +
+                "<tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Paziente</td><td style='padding:8px 16px'><b>" + req.getNome() + "</b></td></tr>" +
+                "<tr><td style='padding:8px 16px;color:#666'>Email</td><td style='padding:8px 16px'>" + req.getEmail() + "</td></tr>" +
+                "<tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Telefono</td><td style='padding:8px 16px'>" + req.getTelefono() + "</td></tr>" +
+                "<tr><td style='padding:8px 16px;color:#666'>Data</td><td style='padding:8px 16px'><b>" + req.getDataTelevista() + "</b></td></tr>" +
+                "<tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Motivo</td><td style='padding:8px 16px'>" + req.getMotivo() + "</td></tr>" +
+                "</table>" +
+                "<p><b>Link Google Meet (tentativo — in attesa conferma pagamento):</b></p>" +
+                meetHtml +
+                "<p>Quando riceve la ricevuta del bonifico, confermi l'appuntamento inviando al paziente il link Meet.</p>";
+
         try {
-            sendEmailWithReplyTo(mailTo, "[Televisita] Nuova prenotazione — " + req.getNome() + " — " + req.getDataTelevista(), html, req.getEmail());
+            sendEmailWithReplyTo(mailTo,
+                    "[Televisita] Nuova prenotazione — " + req.getNome() + " — " + req.getDataTelevista(),
+                    html, req.getEmail());
             log.info("Notifica televisita inviata al dottore per: {}", req.getEmail());
         } catch (Exception e) {
             log.warn("Errore notifica televisita al dottore: {}", e.getMessage());

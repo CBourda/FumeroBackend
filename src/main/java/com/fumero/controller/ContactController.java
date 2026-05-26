@@ -3,6 +3,7 @@ package com.fumero.controller;
 import com.fumero.model.AppointmentRequest;
 import com.fumero.model.ContactRequest;
 import com.fumero.service.AppointmentService;
+import com.fumero.service.GoogleCalendarService;
 import com.fumero.service.MailService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class ContactController {
 
     private final MailService mailService;
     private final AppointmentService appointmentService;
+    private final GoogleCalendarService googleCalendarService;
 
     // ─── CONTATTO GENERALE ───
     @PostMapping("/contact")
@@ -83,7 +85,11 @@ public class ContactController {
         log.info("Nuova prenotazione televisita da: {} per: {} (slot {})",
                 request.getEmail(), request.getDataTelevista(), slot);
 
-        mailService.sendAppointmentEmails(request);
+        String meetLink = googleCalendarService.createTentativeEvent(request);
+        log.info("Meet link generato: {}", meetLink);
+
+        mailService.sendAppointmentEmails(request, meetLink);
+
 
         return ResponseEntity.ok(Map.of(
                 "status", "ok",

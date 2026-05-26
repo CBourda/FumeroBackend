@@ -2,6 +2,7 @@ package com.fumero.service;
 
 import com.fumero.model.AppointmentRequest;
 import com.fumero.model.ContactRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -10,10 +11,19 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class MailService {
+
+    private final AppointmentService appointmentService;
 
     @Value("${mail.to}")
     private String mailTo;
@@ -63,7 +73,7 @@ public class MailService {
         }
     }
 
-    // ─── CONTATTO GENERALE ───────────────────────────────────────────────────
+    // --- CONTATTO GENERALE ---
 
     public void sendContactEmail(ContactRequest req) {
         sendContactToDottore(req);
@@ -93,18 +103,48 @@ public class MailService {
         }
     }
 
-    // ─── PRENOTAZIONE TELEVISITA ─────────────────────────────────────────────
+    // --- PRENOTAZIONE TELEVISITA ---
 
     public void sendAppointmentEmails(AppointmentRequest req, String meetLink) {
-        sendIbanToPaziente(req);
+        sendIbanToPaziente(req, meetLink);
         sendAppointmentNotifyToDottore(req, meetLink);
     }
 
-    private void sendIbanToPaziente(AppointmentRequest req) {
+    private void sendIbanToPaziente(AppointmentRequest req, String meetLink) {
         String causale = "Televisita — " + req.getNome() +
                 " — CF: " + req.getCodiceFiscale() +
                 " — " + req.getIndirizzo() +
                 " — " + req.getDataTelevista();
+
+        // Genera link "Aggiungi a Google Calendar"
+        LocalDate martedi = appointmentService.calcolaProssimoMartedi();
+        LocalTime ora = req.getSlot() == 2 ? LocalTime.of(18, 30) : LocalTime.of(18, 0);
+        ZonedDateTime startUtc = LocalDateTime.of(martedi, ora)
+                .atZone(ZoneId.of("Europe/Rome"))
+                .withZoneSameInstant(ZoneId.of("UTC"));
+        ZonedDateTime endUtc = startUtc.plusMinutes(30);
+        DateTimeFormatter gcalFmt = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'");
+        String gcalDates = startUtc.format(gcalFmt) + "/" + endUtc.format(gcalFmt);
+        String meetDetails = meetLink != null
+                ? "Link+Google+Meet:+" + meetLink.replace("://", "%3A%2F%2F").replace("/", "%2F")
+                : "Televisita+con+Dott.+Andrea+Fumero";
+        String gcalLink = "https://calendar.google.com/calendar/render?action=TEMPLATE" +
+                "&text=Televisita+Dott.+Fumero" +
+                "&dates=" + gcalDates +
+                "&details=" + meetDetails +
+                "&location=Google+Meet";
+
+        String addToCalendarBtn = "<p style='margin:20px 0'>" +
+                "<a href='" + gcalLink + "' style='background:#1a73e8;color:white;padding:12px 24px;" +
+                "text-decoration:none;border-radius:4px;font-family:Arial,sans-serif;font-size:14px;display:inline-block'>" +
+                "&#128197; Aggiungi a Google Calendar</a></p>";
+
+        String meetBtn = meetLink != null
+                ? "<p style='margin:8px 0'><a href='" + meetLink + "' style='background:#34a853;color:white;" +
+                "padding:12px 24px;text-decoration:none;border-radius:4px;font-family:Arial,sans-serif;" +
+                "font-size:14px;display:inline-block'>&#127909; Link Google Meet (provvisorio)</a></p>" +
+                "<p style='font-size:12px;color:#888'>Il link diventerà definitivo dopo la conferma del pagamento da parte del Dott. Fumero.</p>"
+                : "";
 
         String html = "<p>Gentile " + req.getNome() + ",</p>" +
                 "<p>La sua richiesta di televisita è stata ricevuta.</p>" +
@@ -115,9 +155,11 @@ public class MailService {
                 "<tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Importo</td><td style='padding:8px 16px'><b>€ 200,00</b></td></tr>" +
                 "<tr><td style='padding:8px 16px;color:#666'>Causale</td><td style='padding:8px 16px'>" + causale + "</td></tr>" +
                 "</table>" +
-                "<p>Dopo il pagamento, invii la ricevuta del bonifico ed eventuali referti direttamente a: <b>andrea.fumero@humanitas.it</b></p>" +
-                "<p>Il Dott. Fumero confermerà l'appuntamento e le invierà il link Google Meet.</p>" +
+                "<p>&#9888; <b>Dopo il pagamento</b>, invii la ricevuta del bonifico ed eventuali referti direttamente a: <b>andrea.fumero@humanitas.it</b></p>" +
+                "<p>Il Dott. Fumero verificherà il pagamento e confermerà l'appuntamento.</p>" +
                 "<p>Data prevista: <b>" + req.getDataTelevista() + "</b></p>" +
+                addToCalendarBtn +
+                meetBtn +
                 "<br><p>Cordiali saluti,<br><b>Dott. Andrea Fumero</b><br>Cardiochirurgo</p>";
 
         sendEmail(req.getEmail(), "Richiesta televisita ricevuta — Dott. Andrea Fumero", html);
@@ -126,11 +168,11 @@ public class MailService {
 
     private void sendAppointmentNotifyToDottore(AppointmentRequest req, String meetLink) {
         String meetHtml = meetLink != null
-                ? "<p style='margin:16px 0'><a href='" + meetLink + "' style='background:#1a73e8;color:white;padding:10px 20px;text-decoration:none;border-radius:4px'>🎥 Apri Google Meet</a></p>"
-                : "<p style='color:#e74c3c'>⚠ Link Meet non disponibile — crearlo manualmente.</p>";
+                ? "<p style='margin:16px 0'><a href='" + meetLink + "' style='background:#1a73e8;color:white;padding:10px 20px;text-decoration:none;border-radius:4px'>&#127909; Apri Google Meet</a></p>"
+                : "<p style='color:#e74c3c'>&#9888; Link Meet non disponibile — crearlo manualmente.</p>";
 
         String html = "<h2>Nuova richiesta di televisita</h2>" +
-                "<p style='color:#e67e22'><b>⏳ In attesa di verifica pagamento</b></p>" +
+                "<p style='color:#e67e22'><b>&#9203; In attesa di verifica pagamento</b></p>" +
                 "<table style='font-family:Arial,sans-serif;font-size:14px;border-collapse:collapse;margin:16px 0'>" +
                 "<tr style='background:#f5f5f5'><td style='padding:8px 16px;color:#666'>Paziente</td><td style='padding:8px 16px'><b>" + req.getNome() + "</b></td></tr>" +
                 "<tr><td style='padding:8px 16px;color:#666'>Email</td><td style='padding:8px 16px'>" + req.getEmail() + "</td></tr>" +
@@ -140,7 +182,7 @@ public class MailService {
                 "</table>" +
                 "<p><b>Link Google Meet (tentativo — in attesa conferma pagamento):</b></p>" +
                 meetHtml +
-                "<p>Quando riceve la ricevuta del bonifico, confermi l'appuntamento inviando al paziente il link Meet.</p>";
+                "<p>Quando riceve la ricevuta del bonifico, accetti l'invito sul calendario per confermare l'appuntamento al paziente.</p>";
 
         try {
             sendEmailWithReplyTo(mailTo,

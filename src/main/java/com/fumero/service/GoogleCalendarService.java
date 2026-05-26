@@ -94,7 +94,7 @@ public class GoogleCalendarService {
 
         } catch (Exception e) {
             log.error("Errore verifica slot Calendar: {}", e.getMessage());
-            return false; // fallback: non bloccare le prenotazioni
+            return false;
         }
     }
 
@@ -169,6 +169,102 @@ public class GoogleCalendarService {
 
         } catch (Exception e) {
             log.error("Errore creazione evento Google Calendar: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+    public String createTentativeEventAndReturnId(AppointmentRequest request) {
+        try {
+            Calendar service = buildCalendarService();
+
+            LocalDate martedi = calcolaProssimoMartedi();
+            LocalTime ora = request.getSlot() == 2 ? SLOT2 : SLOT1;
+            LocalDateTime start = LocalDateTime.of(martedi, ora);
+            LocalDateTime end = start.plusMinutes(30);
+
+            ZoneId zonaRoma = ZoneId.of("Europe/Rome");
+            ZonedDateTime startZoned = start.atZone(zonaRoma);
+            ZonedDateTime endZoned = end.atZone(zonaRoma);
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx");
+
+            EventDateTime startDt = new EventDateTime()
+                    .setDateTime(new DateTime(startZoned.format(fmt)))
+                    .setTimeZone("Europe/Rome");
+
+            EventDateTime endDt = new EventDateTime()
+                    .setDateTime(new DateTime(endZoned.format(fmt)))
+                    .setTimeZone("Europe/Rome");
+
+            List<EventAttendee> attendees = List.of(
+                    new EventAttendee()
+                            .setEmail(calendarId)
+                            .setOrganizer(true)
+                            .setResponseStatus("tentative"),
+                    new EventAttendee()
+                            .setEmail(request.getEmail())
+                            .setResponseStatus("needsAction")
+            );
+
+            Event event = new Event()
+                    .setSummary("Televisita — " + request.getNome())
+                    .setDescription(
+                            "Paziente: " + request.getNome() + "\n" +
+                                    "Email: " + request.getEmail() + "\n" +
+                                    "Telefono: " + request.getTelefono() + "\n" +
+                                    "CF: " + request.getCodiceFiscale() + "\n" +
+                                    "Indirizzo: " + request.getIndirizzo() + "\n\n" +
+                                    "⚠ In attesa di conferma pagamento"
+                    )
+                    .setStart(startDt)
+                    .setEnd(endDt)
+                    .setStatus("tentative")
+                    .setAttendees(attendees)
+                    .setConferenceData(new ConferenceData()
+                            .setCreateRequest(new CreateConferenceRequest()
+                                    .setRequestId("fumero-" + System.currentTimeMillis())
+                                    .setConferenceSolutionKey(new ConferenceSolutionKey()
+                                            .setType("hangoutsMeet"))));
+
+            Event created = service.events()
+                    .insert(calendarId, event)
+                    .setConferenceDataVersion(1)
+                    .setSendUpdates("all")
+                    .execute();
+
+            log.info("Evento creato con ID: {}", created.getId());
+            return created.getId();
+
+        } catch (Exception e) {
+            log.error("Errore creazione evento: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+    public boolean deleteEvent(String eventId) {
+        try {
+            Calendar service = buildCalendarService();
+            service.events().delete(calendarId, eventId).setSendUpdates("all").execute();
+            log.info("Evento eliminato: {}", eventId);
+            return true;
+        } catch (Exception e) {
+            log.error("Errore eliminazione evento {}: {}", eventId, e.getMessage());
+            return false;
+        }
+    }
+
+    public String getMeetLinkFromEvent(String eventId) {
+        if (eventId == null) return null;
+        try {
+            Calendar service = buildCalendarService();
+            Event event = service.events().get(calendarId, eventId).execute();
+            if (event.getConferenceData() == null) return null;
+            return event.getConferenceData().getEntryPoints().stream()
+                    .filter(e -> "video".equals(e.getEntryPointType()))
+                    .findFirst()
+                    .map(EntryPoint::getUri)
+                    .orElse(null);
+        } catch (Exception e) {
+            log.error("Errore recupero Meet link: {}", e.getMessage());
             return null;
         }
     }

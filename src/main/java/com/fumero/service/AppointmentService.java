@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -23,8 +24,11 @@ public class AppointmentService {
     private static final LocalTime SLOT2 = LocalTime.of(18, 30);
     private static final LocalTime ORA_CHIUSURA = LocalTime.of(23, 59);
 
-    // Mappa locale per race condition (due utenti che prenotano simultaneamente)
+    // Mappa locale per race condition
     private final ConcurrentHashMap<String, Boolean> slotOccupati = new ConcurrentHashMap<>();
+
+    // Mappa token → eventId per cancellazione
+    private final ConcurrentHashMap<String, String> tokenEventMap = new ConcurrentHashMap<>();
 
     private String slotKey(LocalDate martedi, LocalTime ora) {
         return martedi + "_" + ora;
@@ -59,6 +63,20 @@ public class AppointmentService {
         LocalTime ora = slot == 1 ? SLOT1 : SLOT2;
         String key = slotKey(martedi, ora);
         return slotOccupati.putIfAbsent(key, true) == null;
+    }
+
+    // Genera token e lo associa all'eventId
+    public String generaTokenCancellazione(String eventId) {
+        String token = UUID.randomUUID().toString();
+        tokenEventMap.put(token, eventId);
+        return token;
+    }
+
+    // Cancella la prenotazione tramite token — restituisce true se ok
+    public boolean cancellaPrenotazione(String token) {
+        String eventId = tokenEventMap.remove(token);
+        if (eventId == null) return false;
+        return googleCalendarService.deleteEvent(eventId);
     }
 
     public String formattaData(LocalDate martedi, LocalTime ora) {

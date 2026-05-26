@@ -85,16 +85,46 @@ public class ContactController {
         log.info("Nuova prenotazione televisita da: {} per: {} (slot {})",
                 request.getEmail(), request.getDataTelevista(), slot);
 
-        String meetLink = googleCalendarService.createTentativeEvent(request);
-        log.info("Meet link generato: {}", meetLink);
+        // Crea evento e ottieni sia meetLink che eventId
+        String eventId = googleCalendarService.createTentativeEventAndReturnId(request);
+        String meetLink = googleCalendarService.getMeetLinkFromEvent(eventId);
+        log.info("Meet link generato: {} — eventId: {}", meetLink, eventId);
 
-        mailService.sendAppointmentEmails(request, meetLink);
+        // Genera token di cancellazione
+        String cancelToken = appointmentService.generaTokenCancellazione(eventId);
+        String cancelLink = "https://fumerobackend.onrender.com/api/appointment/cancel?token=" + cancelToken;
+        log.info("Token cancellazione generato: {}", cancelToken);
 
+        mailService.sendAppointmentEmails(request, meetLink, cancelLink);
 
         return ResponseEntity.ok(Map.of(
                 "status", "ok",
                 "message", "Richiesta ricevuta. Riceverà a breve una email con gli estremi per il pagamento."
         ));
+    }
+
+    // ─── CANCELLAZIONE PRENOTAZIONE (paziente) ───
+    @GetMapping("/appointment/cancel")
+    public ResponseEntity<String> cancelAppointment(@RequestParam String token) {
+        log.info("Richiesta cancellazione con token: {}", token);
+        boolean ok = appointmentService.cancellaPrenotazione(token);
+        if (ok) {
+            return ResponseEntity.ok("""
+                    <html><body style='font-family:Arial;text-align:center;padding:50px'>
+                    <h2>✓ Prenotazione annullata</h2>
+                    <p>La sua televisita è stata annullata. Il Dott. Fumero è stato notificato.</p>
+                    <p><a href='https://andreafumero.it'>Torna al sito</a></p>
+                    </body></html>
+                    """);
+        } else {
+            return ResponseEntity.badRequest().body("""
+                    <html><body style='font-family:Arial;text-align:center;padding:50px'>
+                    <h2>⚠ Link non valido</h2>
+                    <p>Il link di cancellazione non è valido o è già stato utilizzato.</p>
+                    <p><a href='https://andreafumero.it'>Torna al sito</a></p>
+                    </body></html>
+                    """);
+        }
     }
 
     // ─── SLOT DISPONIBILI ───
@@ -169,7 +199,6 @@ public class ContactController {
         appointmentService.resetSlot2();
         return ResponseEntity.ok(Map.of("status", "ok", "message", "Slot 18:30 resettato."));
     }
-
 
     // ─── VALIDAZIONE ERRORI ───
     @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)

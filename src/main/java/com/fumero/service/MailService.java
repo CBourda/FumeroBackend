@@ -105,12 +105,12 @@ public class MailService {
 
     // --- PRENOTAZIONE TELEVISITA ---
 
-    public void sendAppointmentEmails(AppointmentRequest req, String meetLink) {
-        sendIbanToPaziente(req, meetLink);
+    public void sendAppointmentEmails(AppointmentRequest req, String meetLink, String cancelLink) {
+        sendIbanToPaziente(req, meetLink, cancelLink);
         sendAppointmentNotifyToDottore(req, meetLink);
     }
 
-    private void sendIbanToPaziente(AppointmentRequest req, String meetLink) {
+    private void sendIbanToPaziente(AppointmentRequest req, String meetLink, String cancelLink) {
         String causale = "Televisita — " + req.getNome() +
                 " — CF: " + req.getCodiceFiscale() +
                 " — " + req.getIndirizzo() +
@@ -160,6 +160,8 @@ public class MailService {
                 "<p>Data prevista: <b>" + req.getDataTelevista() + "</b></p>" +
                 addToCalendarBtn +
                 meetBtn +
+                "<p style='margin:20px 0'><a href='" + cancelLink + "' style='background:#e74c3c;color:white;padding:12px 24px;text-decoration:none;border-radius:4px;font-family:Arial,sans-serif;font-size:14px;display:inline-block'>❌ Annulla prenotazione</a></p>" +
+                "<p style='font-size:12px;color:#888'>Il link di annullamento è valido per questa prenotazione.</p>" +
                 "<br><p>Cordiali saluti,<br><b>Dott. Andrea Fumero</b><br>Cardiochirurgo</p>";
 
         sendEmail(req.getEmail(), "Richiesta televisita ricevuta — Dott. Andrea Fumero", html);

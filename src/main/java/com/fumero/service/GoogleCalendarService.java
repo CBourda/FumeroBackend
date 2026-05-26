@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -53,7 +54,7 @@ public class GoogleCalendarService {
         try {
             Calendar service = buildCalendarService();
 
-            // Calcola LocalDateTime dall'slot
+            // Calcola LocalDateTime dallo slot
             LocalDate martedi = appointmentService.calcolaProssimoMartedi();
             LocalTime ora = request.getSlot() == 2
                     ? LocalTime.of(18, 30)
@@ -61,7 +62,6 @@ public class GoogleCalendarService {
             LocalDateTime start = LocalDateTime.of(martedi, ora);
             LocalDateTime end = start.plusMinutes(30);
 
-            // Formato ISO con offset Roma (+02:00 estate, +01:00 inverno)
             ZoneId zonaRoma = ZoneId.of("Europe/Rome");
             ZonedDateTime startZoned = start.atZone(zonaRoma);
             ZonedDateTime endZoned = end.atZone(zonaRoma);
@@ -74,6 +74,18 @@ public class GoogleCalendarService {
             EventDateTime endDt = new EventDateTime()
                     .setDateTime(new DateTime(endZoned.format(fmt)))
                     .setTimeZone("Europe/Rome");
+
+            // Dottore + paziente come invitati
+            // sendUpdates=all farà ricevere l'invito email a entrambi
+            List<EventAttendee> attendees = List.of(
+                    new EventAttendee()
+                            .setEmail(calendarId)           // dottore — organizzatore
+                            .setOrganizer(true)
+                            .setResponseStatus("tentative"),
+                    new EventAttendee()
+                            .setEmail(request.getEmail())   // paziente
+                            .setResponseStatus("needsAction")
+            );
 
             Event event = new Event()
                     .setSummary("Televisita — " + request.getNome())
@@ -88,6 +100,7 @@ public class GoogleCalendarService {
                     .setStart(startDt)
                     .setEnd(endDt)
                     .setStatus("tentative")
+                    .setAttendees(attendees)
                     .setConferenceData(new ConferenceData()
                             .setCreateRequest(new CreateConferenceRequest()
                                     .setRequestId("fumero-" + System.currentTimeMillis())
@@ -97,6 +110,7 @@ public class GoogleCalendarService {
             Event created = service.events()
                     .insert(calendarId, event)
                     .setConferenceDataVersion(1)
+                    .setSendUpdates("all")  // invia invito email a dottore e paziente
                     .execute();
 
             String meetLink = created.getConferenceData()

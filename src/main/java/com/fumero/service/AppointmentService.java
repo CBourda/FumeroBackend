@@ -1,6 +1,7 @@
 package com.fumero.service;
 
 import com.fumero.model.AppointmentRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
@@ -12,15 +13,17 @@ import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
+@RequiredArgsConstructor
 public class AppointmentService {
+
+    private final GoogleCalendarService googleCalendarService;
 
     private static final DayOfWeek GIORNO_TELEVISITA = DayOfWeek.TUESDAY;
     private static final LocalTime SLOT1 = LocalTime.of(18, 0);
     private static final LocalTime SLOT2 = LocalTime.of(18, 30);
     private static final LocalTime ORA_CHIUSURA = LocalTime.of(23, 59);
-    private static final DayOfWeek GIORNO_CHIUSURA = DayOfWeek.SUNDAY;
 
-    // Key: "yyyy-MM-dd_18:00" o "yyyy-MM-dd_18:30" — true = occupato
+    // Mappa locale per race condition (due utenti che prenotano simultaneamente)
     private final ConcurrentHashMap<String, Boolean> slotOccupati = new ConcurrentHashMap<>();
 
     private String slotKey(LocalDate martedi, LocalTime ora) {
@@ -28,22 +31,7 @@ public class AppointmentService {
     }
 
     public LocalDate calcolaProssimoMartedi() {
-        LocalDateTime ora = LocalDateTime.now();
-        LocalDate oggi = ora.toLocalDate();
-
-        LocalDate martedi = oggi;
-        while (martedi.getDayOfWeek() != GIORNO_TELEVISITA) {
-            martedi = martedi.plusDays(1);
-        }
-
-        LocalDate domenica = martedi.minusDays(2);
-        LocalDateTime chiusura = LocalDateTime.of(domenica, ORA_CHIUSURA);
-
-        if (ora.isAfter(chiusura)) {
-            martedi = martedi.plusWeeks(1);
-        }
-
-        return martedi;
+        return googleCalendarService.calcolaProssimoMartedi();
     }
 
     public boolean isPrenotazioneAperta() {
@@ -55,18 +43,21 @@ public class AppointmentService {
     }
 
     public boolean isSlot1Disponibile() {
-        return !slotOccupati.getOrDefault(slotKey(calcolaProssimoMartedi(), SLOT1), false);
+        LocalDate martedi = calcolaProssimoMartedi();
+        if (slotOccupati.getOrDefault(slotKey(martedi, SLOT1), false)) return false;
+        return !googleCalendarService.isSlotOccupato(martedi, SLOT1);
     }
 
     public boolean isSlot2Disponibile() {
-        return !slotOccupati.getOrDefault(slotKey(calcolaProssimoMartedi(), SLOT2), false);
+        LocalDate martedi = calcolaProssimoMartedi();
+        if (slotOccupati.getOrDefault(slotKey(martedi, SLOT2), false)) return false;
+        return !googleCalendarService.isSlotOccupato(martedi, SLOT2);
     }
 
     public boolean prenotaSlot(int slot) {
         LocalDate martedi = calcolaProssimoMartedi();
         LocalTime ora = slot == 1 ? SLOT1 : SLOT2;
         String key = slotKey(martedi, ora);
-        // putIfAbsent restituisce null se il key non esisteva → prenotazione riuscita
         return slotOccupati.putIfAbsent(key, true) == null;
     }
 
@@ -82,7 +73,6 @@ public class AppointmentService {
         request.setDataTelevista(formattaData(martedi, ora));
     }
 
-    // Mantenuto per compatibilità con getSlot() senza slot specifico
     public LocalDateTime calcolaProssimoMartediDateTime() {
         return LocalDateTime.of(calcolaProssimoMartedi(), SLOT1);
     }
@@ -97,10 +87,10 @@ public class AppointmentService {
     }
 
     public void resetSlot1() {
-        slotOccupati.remove(slotKey(calcolaProssimoMartedi(), LocalTime.of(18, 0)));
+        slotOccupati.remove(slotKey(calcolaProssimoMartedi(), SLOT1));
     }
 
     public void resetSlot2() {
-        slotOccupati.remove(slotKey(calcolaProssimoMartedi(), LocalTime.of(18, 30)));
+        slotOccupati.remove(slotKey(calcolaProssimoMartedi(), SLOT2));
     }
 }

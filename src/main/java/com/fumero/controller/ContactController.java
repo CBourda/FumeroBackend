@@ -169,6 +169,8 @@ public class ContactController {
         appointmentService.resetSlot2();
         return ResponseEntity.ok(Map.of("status", "ok", "message", "Slot 18:30 resettato."));
     }
+
+
     // ─── VALIDAZIONE ERRORI ───
     @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationErrors(

@@ -8,7 +8,6 @@ import com.google.api.services.calendar.model.*;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.UserCredentials;
 import com.fumero.model.AppointmentRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -19,10 +18,12 @@ import java.util.List;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class GoogleCalendarService {
 
-    private final AppointmentService appointmentService;
+    private static final LocalTime SLOT1 = LocalTime.of(18, 0);
+    private static final LocalTime SLOT2 = LocalTime.of(18, 30);
+    private static final LocalTime ORA_CHIUSURA = LocalTime.of(23, 59);
+    private static final DayOfWeek GIORNO_TELEVISITA = DayOfWeek.TUESDAY;
 
     @Value("${google.client.id}")
     private String clientId;
@@ -50,15 +51,60 @@ public class GoogleCalendarService {
         ).setApplicationName("Fumero Backend Calendar").build();
     }
 
+    // ─── Calcolo prossimo martedì (autonomo, no dipendenza da AppointmentService) ───
+    public LocalDate calcolaProssimoMartedi() {
+        LocalDateTime ora = LocalDateTime.now();
+        LocalDate oggi = ora.toLocalDate();
+
+        LocalDate martedi = oggi;
+        while (martedi.getDayOfWeek() != GIORNO_TELEVISITA) {
+            martedi = martedi.plusDays(1);
+        }
+
+        LocalDate domenica = martedi.minusDays(2);
+        LocalDateTime chiusura = LocalDateTime.of(domenica, ORA_CHIUSURA);
+
+        if (ora.isAfter(chiusura)) {
+            martedi = martedi.plusWeeks(1);
+        }
+
+        return martedi;
+    }
+
+    // ─── Verifica slot via Freebusy API ───
+    public boolean isSlotOccupato(LocalDate martedi, LocalTime ora) {
+        try {
+            Calendar service = buildCalendarService();
+
+            ZoneId zonaRoma = ZoneId.of("Europe/Rome");
+            ZonedDateTime start = LocalDateTime.of(martedi, ora).atZone(zonaRoma);
+            ZonedDateTime end = start.plusMinutes(30);
+
+            FreeBusyRequest fbRequest = new FreeBusyRequest()
+                    .setTimeMin(new DateTime(start.toInstant().toEpochMilli()))
+                    .setTimeMax(new DateTime(end.toInstant().toEpochMilli()))
+                    .setItems(List.of(new FreeBusyRequestItem().setId(calendarId)));
+
+            FreeBusyResponse response = service.freebusy().query(fbRequest).execute();
+
+            List<TimePeriod> busy = response.getCalendars().get(calendarId).getBusy();
+            boolean occupato = busy != null && !busy.isEmpty();
+            log.info("Slot {}/{} — occupato: {}", martedi, ora, occupato);
+            return occupato;
+
+        } catch (Exception e) {
+            log.error("Errore verifica slot Calendar: {}", e.getMessage());
+            return false; // fallback: non bloccare le prenotazioni
+        }
+    }
+
+    // ─── Creazione evento tentativo con Meet ───
     public String createTentativeEvent(AppointmentRequest request) {
         try {
             Calendar service = buildCalendarService();
 
-            // Calcola LocalDateTime dallo slot
-            LocalDate martedi = appointmentService.calcolaProssimoMartedi();
-            LocalTime ora = request.getSlot() == 2
-                    ? LocalTime.of(18, 30)
-                    : LocalTime.of(18, 0);
+            LocalDate martedi = calcolaProssimoMartedi();
+            LocalTime ora = request.getSlot() == 2 ? SLOT2 : SLOT1;
             LocalDateTime start = LocalDateTime.of(martedi, ora);
             LocalDateTime end = start.plusMinutes(30);
 
@@ -75,15 +121,13 @@ public class GoogleCalendarService {
                     .setDateTime(new DateTime(endZoned.format(fmt)))
                     .setTimeZone("Europe/Rome");
 
-            // Dottore + paziente come invitati
-            // sendUpdates=all farà ricevere l'invito email a entrambi
             List<EventAttendee> attendees = List.of(
                     new EventAttendee()
-                            .setEmail(calendarId)           // dottore — organizzatore
+                            .setEmail(calendarId)
                             .setOrganizer(true)
                             .setResponseStatus("tentative"),
                     new EventAttendee()
-                            .setEmail(request.getEmail())   // paziente
+                            .setEmail(request.getEmail())
                             .setResponseStatus("needsAction")
             );
 
@@ -110,7 +154,7 @@ public class GoogleCalendarService {
             Event created = service.events()
                     .insert(calendarId, event)
                     .setConferenceDataVersion(1)
-                    .setSendUpdates("all")  // invia invito email a dottore e paziente
+                    .setSendUpdates("all")
                     .execute();
 
             String meetLink = created.getConferenceData()

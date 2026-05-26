@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -266,6 +267,39 @@ public class GoogleCalendarService {
         } catch (Exception e) {
             log.error("Errore recupero Meet link: {}", e.getMessage());
             return null;
+        }
+    }
+
+    public List<Map<String, String>> getUpcomingEvents() {
+        try {
+            Calendar service = buildCalendarService();
+
+            LocalDate martedi = calcolaProssimoMartedi();
+            ZoneId zonaRoma = ZoneId.of("Europe/Rome");
+            ZonedDateTime startOfDay = martedi.atStartOfDay(zonaRoma);
+            ZonedDateTime endOfDay = martedi.atTime(23, 59).atZone(zonaRoma);
+
+            Events events = service.events().list(calendarId)
+                    .setTimeMin(new DateTime(startOfDay.toInstant().toEpochMilli()))
+                    .setTimeMax(new DateTime(endOfDay.toInstant().toEpochMilli()))
+                    .setOrderBy("startTime")
+                    .setSingleEvents(true)
+                    .execute();
+
+            return events.getItems().stream()
+                    .map(e -> Map.of(
+                            "id", e.getId(),
+                            "titolo", e.getSummary() != null ? e.getSummary() : "—",
+                            "data", e.getStart().getDateTime() != null
+                                    ? e.getStart().getDateTime().toString()
+                                    : e.getStart().getDate().toString(),
+                            "status", e.getStatus() != null ? e.getStatus() : "—"
+                    ))
+                    .collect(java.util.stream.Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("Errore recupero eventi: {}", e.getMessage());
+            return List.of();
         }
     }
 }

@@ -200,6 +200,37 @@ public class ContactController {
         return ResponseEntity.ok(Map.of("status", "ok", "message", "Slot 18:30 resettato."));
     }
 
+    @DeleteMapping("/admin/delete-event")
+    public ResponseEntity<Map<String, String>> deleteEvent(
+            @RequestHeader("X-Admin-Password") String password,
+            @RequestParam String eventId) {
+
+        String adminPassword = System.getenv("ADMIN_PASSWORD");
+        if (adminPassword == null || !adminPassword.equals(password)) {
+            return ResponseEntity.status(403).body(Map.of("status", "error", "message", "Non autorizzato."));
+        }
+
+        boolean ok = googleCalendarService.deleteEvent(eventId);
+        if (ok) {
+            return ResponseEntity.ok(Map.of("status", "ok", "message", "Evento eliminato: " + eventId));
+        } else {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", "Errore eliminazione evento."));
+        }
+    }
+
+    @GetMapping("/admin/events")
+    public ResponseEntity<?> getEvents(
+            @RequestHeader("X-Admin-Password") String password) {
+
+        String adminPassword = System.getenv("ADMIN_PASSWORD");
+        if (adminPassword == null || !adminPassword.equals(password)) {
+            return ResponseEntity.status(403).body(Map.of("status", "error", "message", "Non autorizzato."));
+        }
+
+        List<Map<String, String>> events = googleCalendarService.getUpcomingEvents();
+        return ResponseEntity.ok(events);
+    }
+
     // ─── VALIDAZIONE ERRORI ───
     @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationErrors(

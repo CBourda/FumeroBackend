@@ -231,6 +231,23 @@ public class ContactController {
         return ResponseEntity.ok(events);
     }
 
+    @PostMapping("/admin/reset-full")
+    public ResponseEntity<Map<String, String>> resetFull(
+            @RequestHeader("X-Admin-Password") String password) {
+
+        String adminPassword = System.getenv("ADMIN_PASSWORD");
+        if (adminPassword == null || !adminPassword.equals(password)) {
+            return ResponseEntity.status(403).body(Map.of("status", "error", "message", "Non autorizzato."));
+        }
+
+        int eliminati = googleCalendarService.deleteUpcomingEvents();
+        appointmentService.resetSlots();
+        log.info("Reset full: {} eventi eliminati dal calendario", eliminati);
+        return ResponseEntity.ok(Map.of(
+                "status", "ok",
+                "message", "Reset completato. Eventi eliminati: " + eliminati
+        ));
+    }
     // ─── VALIDAZIONE ERRORI ───
     @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationErrors(

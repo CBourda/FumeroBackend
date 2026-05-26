@@ -302,4 +302,39 @@ public class GoogleCalendarService {
             return List.of();
         }
     }
+
+    public int deleteUpcomingEvents() {
+        try {
+            Calendar service = buildCalendarService();
+
+            LocalDate martedi = calcolaProssimoMartedi();
+            ZoneId zonaRoma = ZoneId.of("Europe/Rome");
+            ZonedDateTime startOfDay = martedi.atStartOfDay(zonaRoma);
+            ZonedDateTime endOfDay = martedi.atTime(23, 59).atZone(zonaRoma);
+
+            Events events = service.events().list(calendarId)
+                    .setTimeMin(new DateTime(startOfDay.toInstant().toEpochMilli()))
+                    .setTimeMax(new DateTime(endOfDay.toInstant().toEpochMilli()))
+                    .setSingleEvents(true)
+                    .execute();
+
+            int count = 0;
+            for (Event event : events.getItems()) {
+                try {
+                    service.events().delete(calendarId, event.getId())
+                            .setSendUpdates("all")
+                            .execute();
+                    log.info("Evento eliminato: {}", event.getId());
+                    count++;
+                } catch (Exception e) {
+                    log.warn("Errore eliminazione evento {}: {}", event.getId(), e.getMessage());
+                }
+            }
+            return count;
+
+        } catch (Exception e) {
+            log.error("Errore deleteUpcomingEvents: {}", e.getMessage());
+            return 0;
+        }
+    }
 }

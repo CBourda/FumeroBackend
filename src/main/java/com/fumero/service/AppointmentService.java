@@ -35,15 +35,27 @@ public class AppointmentService {
     }
 
     public LocalDate calcolaProssimoMartedi() {
-        return googleCalendarService.calcolaProssimoMartedi();
+        LocalDate oggi = LocalDate.now();
+
+        LocalDate martedi = oggi;
+        while (martedi.getDayOfWeek() != GIORNO_TELEVISITA) {
+            martedi = martedi.plusDays(1);
+        }
+
+        if (!martedi.isAfter(oggi)) {
+            martedi = martedi.plusWeeks(1);
+        }
+
+        return martedi;
     }
 
     public boolean isPrenotazioneAperta() {
-        LocalDateTime ora = LocalDateTime.now();
-        LocalDate martedi = calcolaProssimoMartedi();
-        LocalDate domenica = martedi.minusDays(2);
-        LocalDateTime chiusura = LocalDateTime.of(domenica, ORA_CHIUSURA);
-        return ora.isBefore(chiusura);
+        //LocalDateTime ora = LocalDateTime.now();
+        //LocalDate martedi = calcolaProssimoMartedi();
+        //LocalDate domenica = martedi.minusDays(2);
+        //LocalDateTime chiusura = LocalDateTime.of(domenica, ORA_CHIUSURA);
+        //return ora.isBefore(chiusura);
+        return true;
     }
 
     public boolean isSlot1Disponibile() {

@@ -54,18 +54,15 @@ public class GoogleCalendarService {
 
     // ─── Calcolo prossimo martedì (autonomo, no dipendenza da AppointmentService) ───
     public LocalDate calcolaProssimoMartedi() {
-        LocalDateTime ora = LocalDateTime.now();
-        LocalDate oggi = ora.toLocalDate();
+        LocalDate oggi = LocalDate.now();
 
         LocalDate martedi = oggi;
         while (martedi.getDayOfWeek() != GIORNO_TELEVISITA) {
             martedi = martedi.plusDays(1);
         }
 
-        LocalDate domenica = martedi.minusDays(2);
-        LocalDateTime chiusura = LocalDateTime.of(domenica, ORA_CHIUSURA);
-
-        if (ora.isAfter(chiusura)) {
+        // Se il martedì trovato è oggi o già passato, prendi il prossimo
+        if (!martedi.isAfter(oggi)) {
             martedi = martedi.plusWeeks(1);
         }
 
